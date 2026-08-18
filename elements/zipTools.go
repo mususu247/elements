@@ -2,18 +2,25 @@ package elements
 
 import (
 	"archive/zip"
-	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 )
 
 func FromZip(srcFile string, dstPath string) error {
+	_, err := os.Stat(dstPath)
+	if err == nil {
+		err = os.RemoveAll(dstPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	zr, err := zip.OpenReader(srcFile)
 	if err != nil {
-		fmt.Printf("(Error) %v", err)
+		log.Printf("(Error) %v", err)
 		return err
 	}
 	defer zr.Close()
@@ -28,14 +35,14 @@ func FromZip(srcFile string, dstPath string) error {
 
 		unzipPath := filepath.Join(dstPath, dirPath)
 		if err := os.MkdirAll(unzipPath, 0755); err != nil {
-			fmt.Printf("(Error) %v", err)
+			log.Printf("(Error) %v", err)
 			return err
 		}
 		if !zf.FileInfo().IsDir() {
 			fd := zf.Modified
 			src, err := zf.Open()
 			if err != nil {
-				fmt.Printf("(Error) %v", err)
+				log.Printf("(Error) %v", err)
 				return err
 			}
 			defer src.Close()
@@ -43,12 +50,13 @@ func FromZip(srcFile string, dstPath string) error {
 			unFile := filepath.Join(dstPath, zf.Name)
 			dst, err := os.Create(unFile)
 			if err != nil {
-				fmt.Printf("(Error) %v", err)
+				log.Printf("(Error) %v", err)
 				return err
 			}
 			defer dst.Close()
+
 			if _, err := io.Copy(dst, src); err != nil {
-				fmt.Printf("(Error) %v", err)
+				log.Printf("(Error) %v", err)
 				return err
 			}
 			SetFileModTime(unFile, AddLocal(fd))
@@ -57,36 +65,63 @@ func FromZip(srcFile string, dstPath string) error {
 	return nil
 }
 
-func ToZip(srcPath string, dstFile string) error {
-	findPath := filepath.Join(srcPath, "*.*")
-	list, err := FindFile(findPath, -1)
+func toZip(basePath string, srcPath string, zw *zip.Writer) error {
+	list, err := os.ReadDir(srcPath)
 	if err != nil {
+		log.Printf("(Error) %v \n", err)
 		return err
 	}
-	// 新しいzipアーカイブファイルを作成
-	zipFile, _ := os.Create(dstFile)
-	defer zipFile.Close()
-
-	// zipアーカイブのライターを作成
-	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
 
 	for i := range list {
-		// ファイルをzipアーカイブに追加
-		srcFile := strings.ReplaceAll(list[i], srcPath, "")
-		//fileInfo, err := os.Stat(srcFile)
-		//if err != nil {
-		//	continue
-		//}
+		absPath := filepath.Join(srcPath, list[i].Name())
+		relPath, _ := filepath.Rel(basePath, absPath)
 
-		//header, _ := zip.FileInfoHeader(fileInfo)
-		//writer, _ := zipWriter.CreateHeader(header)
-		writer, _ := zipWriter.Create(srcFile)
-		file, err := os.Open(list[i])
-		if err == nil {
-			io.Copy(writer, file)
+		if list[i].IsDir() {
+			relPath = relPath + string(filepath.Separator)
+			_, err = zw.Create(relPath)
+			if err != nil {
+				log.Printf("(Error) %v \n", err)
+				continue
+			}
+
+			toZip(basePath, absPath, zw)
+		} else {
+			fw, err := zw.Create(relPath)
+			if err != nil {
+				log.Printf("(Error) %v \n", err)
+				continue
+			}
+
+			bytes, err := os.ReadFile(absPath)
+			if err == nil {
+				fw.Write(bytes)
+			}
+		}
+	}
+	return nil
+}
+
+func ToZip(srcPath string, dstFile string) error {
+	_, err := os.Stat(dstFile)
+	if err == nil {
+		err = os.Remove(dstFile)
+		if err != nil {
+			return err
 		}
 	}
 
+	zipFile, _ := os.Create(dstFile)
+	defer zipFile.Close()
+
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	srcPath, err = filepath.Abs(srcPath)
+	if err != nil {
+		return err
+	}
+
+	basePath := srcPath + string(filepath.Separator)
+	toZip(basePath, srcPath, zipWriter)
 	return nil
 }

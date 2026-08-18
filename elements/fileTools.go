@@ -261,6 +261,6 @@ func AddLocal(value time.Time) time.Time {
 			x = append(x, value.Second())
 		}
 	}
-	loc, _ := time.LoadLocation("Asia/Tokyo")
+	loc, _ := time.LoadLocation("Local")
 	return time.Date(x[0], time.Month(x[1]), x[2], x[3], x[4], x[5], 0, loc)
 }

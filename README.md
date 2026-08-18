@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-var doc elements.Dom
+	var doc elements.Dom
 	doc.Init("\t")
 	root := doc.Root()
 
