@@ -33,8 +33,7 @@ var doc elements.Dom
 	html.AppendChild(body)
 
 	title := doc.CreateElement("title")
-	t := doc.CreateTextNode("T.I.T.L.E.")
-	title.AppendChild(t)
+	title.InnerText("T.I.T.L.E.")
 	head.AppendChild(title)
 
 	table := doc.CreateElement("table")
