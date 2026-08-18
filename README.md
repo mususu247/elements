@@ -12,7 +12,11 @@ go mod tidy
 ```Go
 package main
 
-import "github.com/mususu247/elements/elements"
+import (
+	"fmt"
+	"strconv"
+	"github.com/mususu247/elements/elements"
+)
 
 func main() {
 var doc elements.Dom
@@ -37,6 +41,7 @@ var doc elements.Dom
 	head.AppendChild(title)
 
 	table := doc.CreateElement("table")
+	table.SetAttribute("border", 1)
 	body.AppendChild(table)
 
 	r0 := doc.CreateElement("tr")
@@ -72,7 +77,7 @@ var doc elements.Dom
 </head>
 
 <body>
-    <table>
+    <table border="1">
         <tr id="R0"><th>A.</th><th>B.</th><th>C.</th></tr>
         <tr id="R1"><td>A1</td><td>B2</td><td>C3</td></tr>
         <tr id="R2"><td>A2</td><td>B3</td><td>C4</td></tr>
