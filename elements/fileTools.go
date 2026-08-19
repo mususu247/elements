@@ -264,3 +264,8 @@ func AddLocal(value time.Time) time.Time {
 	loc, _ := time.LoadLocation("Local")
 	return time.Date(x[0], time.Month(x[1]), x[2], x[3], x[4], x[5], 0, loc)
 }
+
+func FileMin() time.Time {
+	loc, _ := time.LoadLocation("Local")
+	return time.Date(1980, 1, 1, 0, 0, 0, 0, loc)
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -1384,6 +1385,144 @@ func (nd *Node) xml2node(htmlData string) error {
 	return nil
 }
 
+// Path to Node
+func (nd *Node) getPath(basePath string, findPath string) error {
+	list, err := os.ReadDir(findPath)
+	if err != nil {
+		return err
+	}
+
+	base := basePath + string(filepath.Separator)
+	baseTime := FileMin()
+
+	doc := nd.earth
+	xmls := doc.GetAlias(".xml", false)
+	xmls = append(xmls, "*.xml")
+	htmls := doc.GetAlias(".html", false)
+	htmls = append(htmls, "*.html")
+
+	for i := range list {
+		fi, err := list[i].Info()
+		if err != nil {
+			continue
+		}
+		find := filepath.Join(findPath, fi.Name())
+		rel, _ := filepath.Rel(base, find)
+		rel = filepath.ToSlash(rel)
+		rel = "/" + rel
+		mt := AddLocal(fi.ModTime())
+
+		if fi.IsDir() {
+			elm := doc.CreateElement("path")
+			elm.name = "$path"
+			elm.SetAttribute("pathType", "folder")
+			elm.SetAttribute("pathName", fi.Name())
+			elm.SetAttribute("pathSize", fi.Size())
+			elm.SetAttribute("pathRels", rel)
+			if timeComp(baseTime, mt) != 0 {
+				elm.SetAttribute("pathTime", mt)
+			}
+			nd.AppendChild(elm)
+
+			elm.getPath(basePath, find)
+		} else {
+			elm := doc.CreateElement("path")
+			elm.name = "$path"
+			elm.SetAttribute("pathType", "file")
+			elm.SetAttribute("pathName", fi.Name())
+			elm.SetAttribute("pathSize", fi.Size())
+			elm.SetAttribute("pathRels", rel)
+			if timeComp(baseTime, mt) != 0 {
+				elm.SetAttribute("pathTime", mt)
+			}
+			nd.AppendChild(elm)
+
+			for j := range xmls {
+				if ok, _ := filepath.Match(xmls[j], fi.Name()); ok {
+					fn := filepath.Join(findPath, fi.Name())
+					elm.Import(fn, ".xml")
+					continue
+				}
+			}
+
+			for j := range htmls {
+				if ok, _ := filepath.Match(htmls[j], fi.Name()); ok {
+					fn := filepath.Join(findPath, fi.Name())
+					elm.Import(fn, ".html")
+					continue
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (nd *Node) GetPath(basePath string) error {
+	err := nd.check()
+	if err != nil {
+		return err
+	}
+
+	fi, err := os.Stat(basePath)
+	if err != nil {
+		return err
+	}
+
+	mt := AddLocal(fi.ModTime())
+	baseTime := FileMin()
+	doc := nd.earth
+	rel := "/"
+
+	xmls := doc.GetAlias(".xml", false)
+	xmls = append(xmls, "*.xml")
+	htmls := doc.GetAlias(".html", false)
+	htmls = append(htmls, "*.html")
+
+	if fi.IsDir() {
+		elm := doc.CreateElement("path")
+		elm.name = "$path"
+		elm.SetAttribute("pathType", "folder")
+		elm.SetAttribute("pathName", fi.Name())
+		elm.SetAttribute("pathSize", fi.Size())
+		elm.SetAttribute("pathRels", rel)
+		if timeComp(baseTime, mt) != 0 {
+			elm.SetAttribute("pathTime", mt)
+		}
+		nd.AppendChild(elm)
+
+		elm.getPath(basePath, basePath)
+	} else {
+		elm := doc.CreateElement("path")
+		elm.name = "$path"
+		elm.SetAttribute("pathType", "file")
+		elm.SetAttribute("pathName", fi.Name())
+		elm.SetAttribute("pathSize", fi.Size())
+		elm.SetAttribute("pathRels", rel)
+		if timeComp(baseTime, mt) != 0 {
+			elm.SetAttribute("pathTime", mt)
+		}
+		nd.AppendChild(elm)
+
+		for j := range xmls {
+			if ok, _ := filepath.Match(xmls[j], fi.Name()); ok {
+				fn := filepath.Join(basePath, fi.Name())
+				elm.Import(fn, ".xml")
+				return nil
+			}
+		}
+
+		for j := range htmls {
+			if ok, _ := filepath.Match(htmls[j], fi.Name()); ok {
+				fn := filepath.Join(basePath, fi.Name())
+				elm.Import(fn, ".html")
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
 // Import
 func (nd *Node) Import(fileName string, kind string) error {
 	err := nd.check()
@@ -1396,22 +1535,39 @@ func (nd *Node) Import(fileName string, kind string) error {
 		return err
 	}
 
-	if !FileExists(fullPath) {
-		return fmt.Errorf("(Error) not found file:'%v'", fullPath)
-	}
-
-	var jsonData []byte
-	jsonData, err = os.ReadFile(fullPath)
-	if err != nil {
-		return err
-	}
-
-	text := string(jsonData)
 	switch kind {
 	case ".html":
+		if !FileExists(fullPath) {
+			return fmt.Errorf("(Error) not found file:'%v'", fullPath)
+		}
+
+		var jsonData []byte
+		jsonData, err = os.ReadFile(fullPath)
+		if err != nil {
+			return err
+		}
+
+		text := string(jsonData)
 		nd.InnerHTML(text)
 	case ".xml":
+		if !FileExists(fullPath) {
+			return fmt.Errorf("(Error) not found file:'%v'", fullPath)
+		}
+
+		var jsonData []byte
+		jsonData, err = os.ReadFile(fullPath)
+		if err != nil {
+			return err
+		}
+
+		text := string(jsonData)
 		nd.InnerXML(text)
+	case "path":
+		if !FolderExists(fullPath) {
+			return fmt.Errorf("(Error) not found folder:'%v'", fullPath)
+		}
+
+		nd.GetPath(fileName)
 	}
 	return nil
 }
@@ -1434,6 +1590,8 @@ func (nd *Node) Export(fileName string, kind string) error {
 		text = nd.InnerHTML()
 	case ".xml":
 		text = nd.GetXML()
+	case "path":
+
 	}
 
 	if len(text) == 0 {
