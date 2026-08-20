@@ -307,24 +307,24 @@ func A1toR1C1(address string) (int64, int64) {
 			row = (row * 10) + xx
 		}
 	}
-	return col, row
+	return row, col
 }
 
 func R1C1toA1(row int64, col int64) string {
 	var addr string
 
-	r := row
-	for r > 26 {
-		w := r % 26
-		r = (r - w) / 26
+	c := col
+	for c > 26 {
+		w := c % 26
+		c = (c - w) / 26
 		char := byte(w + 64)
 		s := string(char)
 		addr = s + addr
 	}
-	char := byte(r + 64)
+	char := byte(c + 64)
 	s := string(char)
 	addr = s + addr
 
-	addr = addr + strconv.FormatInt(col, 10)
+	addr = addr + strconv.FormatInt(row, 10)
 	return addr
 }
