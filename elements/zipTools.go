@@ -2,12 +2,25 @@ package elements
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 )
+
+func CheckZip(zipFile string) error {
+	zr, err := zip.OpenReader(zipFile)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+
+	for _, zf := range zr.File {
+		fmt.Printf("name:'%v' mod:#%v# \n", zf.Name, zf.Modified.Format("2006-01-02 15:00:00"))
+	}
+	return nil
+}
 
 func FromZip(srcFile string, dstPath string) error {
 	_, err := os.Stat(dstPath)
@@ -26,41 +39,34 @@ func FromZip(srcFile string, dstPath string) error {
 	defer zr.Close()
 
 	for _, zf := range zr.File {
-		var dirPath string
-		if zf.FileInfo().IsDir() {
-			dirPath = zf.Name
-		} else {
-			dirPath = path.Dir(zf.Name)
-		}
-
-		unzipPath := filepath.Join(dstPath, dirPath)
-		if err := os.MkdirAll(unzipPath, 0755); err != nil {
+		fd := zf.Modified
+		src, err := zf.Open()
+		if err != nil {
 			log.Printf("(Error) %v", err)
 			return err
 		}
-		if !zf.FileInfo().IsDir() {
-			fd := zf.Modified
-			src, err := zf.Open()
-			if err != nil {
-				log.Printf("(Error) %v", err)
-				return err
-			}
-			defer src.Close()
+		defer src.Close()
 
-			unFile := filepath.Join(dstPath, zf.Name)
-			dst, err := os.Create(unFile)
-			if err != nil {
-				log.Printf("(Error) %v", err)
-				return err
-			}
-			defer dst.Close()
-
-			if _, err := io.Copy(dst, src); err != nil {
-				log.Printf("(Error) %v", err)
-				return err
-			}
-			SetFileModTime(unFile, AddLocal(fd))
+		unFile := filepath.Join(dstPath, zf.Name)
+		dir := filepath.Dir(unFile)
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			log.Printf("(Error) %v", err)
+			continue
 		}
+
+		dst, err := os.Create(unFile)
+		if err != nil {
+			log.Printf("(Error) %v", err)
+			continue
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, src); err != nil {
+			log.Printf("(Error) %v", err)
+			continue
+		}
+		SetFileModTime(unFile, AddLocal(fd))
 	}
 	return nil
 }
@@ -77,13 +83,6 @@ func toZip(basePath string, srcPath string, zw *zip.Writer) error {
 		relPath, _ := filepath.Rel(basePath, absPath)
 
 		if list[i].IsDir() {
-			relPath = relPath + string(filepath.Separator)
-			_, err = zw.Create(relPath)
-			if err != nil {
-				log.Printf("(Error) %v \n", err)
-				continue
-			}
-
 			toZip(basePath, absPath, zw)
 		} else {
 			fw, err := zw.Create(relPath)
