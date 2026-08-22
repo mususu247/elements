@@ -1,7 +1,9 @@
 package elements
 
 import (
+	"fmt"
 	"log"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -327,4 +329,36 @@ func R1C1toA1(row int64, col int64) string {
 
 	addr = addr + strconv.FormatInt(row, 10)
 	return addr
+}
+
+func FromOADate(value float64) (time.Time, error) {
+	var result time.Time
+
+	if value <= 0 {
+		return result, fmt.Errorf("invalid OLE date value:%f", value)
+	}
+	dd := math.Floor(value)
+	v := (value - dd) * 24
+	hh := math.Floor(v)
+	v = (v - hh) * 60
+	nn := math.Floor(v)
+	v = (v - nn) * 60
+	ss := math.Floor(v)
+
+	id := int(dd) - 1
+	ih := int(hh)
+	in := int(nn)
+	is := int(ss)
+
+	result = time.Date(1900, 1, id, ih, in, is, 0, time.Local)
+	return result, nil
+}
+
+func ToOADate(value time.Time) float64 {
+	var result float64
+
+	//** Lotus 1-2-3 Bug (1900-02-29) **//
+	zero := time.Date(1899, 12, 30, 0, 0, 0, 0, time.Local)
+	result = value.Sub(zero).Hours() / 24
+	return result
 }
