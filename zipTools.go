@@ -16,9 +16,12 @@ func CheckZip(zipFile string) error {
 	}
 	defer zr.Close()
 
+	fmt.Printf("[zipFile]:'%v'\n", zipFile)
+	fmt.Println("  name\tz-size\tr-size\tutf8\tver\tcomment")
 	for _, zf := range zr.File {
-		fmt.Printf("name:'%v' mod:#%v# \n", zf.Name, zf.Modified.Format("2006-01-02 15:00:00"))
+		fmt.Printf("  %v\t%v\t%v\t%v\t%v\t'%v'\n", zf.Name, zf.CompressedSize64, zf.FileInfo().Size(), zf.NonUTF8, zf.CreatorVersion, zf.Comment)
 	}
+	fmt.Println()
 	return nil
 }
 

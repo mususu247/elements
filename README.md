@@ -15,7 +15,7 @@ package main
 import (
 	"fmt"
 	"strconv"
-	"github.com/mususu247/elements/elements"
+	"github.com/mususu247/elements"
 )
 
 func main() {
