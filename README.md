@@ -20,7 +20,7 @@ import (
 
 func main() {
 	var doc elements.Dom
-	doc.Init("\t")
+	doc.Init()
 	root := doc.Root()
 
 	docType := doc.CreateComment("<!DOCTYPE html>")
