@@ -31,21 +31,22 @@ func any2str(value any, tag bool) string {
 		return strconv.FormatBool(x)
 	case time.Time:
 		return x.Format(time.RFC3339)
-	case []string:
-		return "[" + strings.Join(x, ", ") + "]"
-	case []float64:
-		var strs []string
-		for _, v := range x {
-			strs = append(strs, strconv.FormatFloat(v, 'f', -1, 64))
-		}
-		return "[" + strings.Join(strs, ", ") + "]"
-	case []bool:
-		var strs []string
-		for _, v := range x {
-			strs = append(strs, strconv.FormatBool(v))
-		}
-		return "[" + strings.Join(strs, ", ") + "]"
+	case []any:
+		var val []string
 
+		for i := range x {
+			switch xx := x[i].(type) {
+			case string:
+				val = append(val, xx)
+			case float64:
+				v := strconv.FormatFloat(xx, 'f', -1, 64)
+				val = append(val, v)
+			case bool:
+				v := strconv.FormatBool(xx)
+				val = append(val, v)
+			}
+		}
+		return "[" + strings.Join(val, ", ") + "]"
 	default:
 		return ""
 	}
