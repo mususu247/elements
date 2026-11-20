@@ -2,6 +2,7 @@ package elements
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"log"
@@ -489,7 +490,7 @@ func (nd *Node) Reindex() {
 }
 
 // GetElementBy
-func (nd *Node) firstChild() *Node {
+func (nd *Node) FirstChild() *Node {
 	doc := nd.earth
 	count := len(nd.children)
 	if count > 0 {
@@ -501,7 +502,7 @@ func (nd *Node) firstChild() *Node {
 	return nil
 }
 
-func (nd *Node) lastChild() *Node {
+func (nd *Node) LastChild() *Node {
 	doc := nd.earth
 	count := len(nd.children)
 	if count > 0 {
@@ -994,6 +995,24 @@ func (nd *Node) InnerHTML(text ...string) string {
 }
 
 // XPath (TagName)
+func (nd *Node) Deep() int {
+	var count int
+
+	node := nd.Parent()
+	if node != nil {
+		for {
+			node = node.Parent()
+			if node != nil {
+				count++
+			} else {
+				break
+			}
+		}
+	}
+
+	return count
+}
+
 func (nd *Node) xpath(base *Node, style int) []string {
 	var path []string
 	if nd.num == 0 {
@@ -1586,6 +1605,8 @@ func (nd *Node) getPath(basePath string, findPath string) error {
 		if err != nil {
 			continue
 		}
+		name := fi.Name()
+
 		find := filepath.Join(findPath, fi.Name())
 		rel, _ := filepath.Rel(base, find)
 		rel = filepath.ToSlash(rel)
@@ -1596,7 +1617,7 @@ func (nd *Node) getPath(basePath string, findPath string) error {
 			elm := doc.CreateElement("path")
 			elm.name = "$path"
 			elm.SetAttribute("pathType", "folder")
-			elm.SetAttribute("pathName", fi.Name())
+			elm.SetAttribute("pathName", name)
 			elm.SetAttribute("pathSize", fi.Size())
 			elm.SetAttribute("pathRels", rel)
 			if timeComp(baseTime, mt) != 0 {
@@ -1609,7 +1630,7 @@ func (nd *Node) getPath(basePath string, findPath string) error {
 			elm := doc.CreateElement("path")
 			elm.name = "$path"
 			elm.SetAttribute("pathType", "file")
-			elm.SetAttribute("pathName", fi.Name())
+			elm.SetAttribute("pathName", name)
 			elm.SetAttribute("pathSize", fi.Size())
 			elm.SetAttribute("pathRels", rel)
 			if timeComp(baseTime, mt) != 0 {
@@ -1617,20 +1638,30 @@ func (nd *Node) getPath(basePath string, findPath string) error {
 			}
 			nd.AppendChild(elm)
 
-			for j := range xmls {
-				if ok, _ := filepath.Match(xmls[j], fi.Name()); ok {
-					fn := filepath.Join(findPath, fi.Name())
-					elm.Import(fn, ".xml")
+			hit := false
+			for j := range htmls {
+				if ok, _ := filepath.Match(htmls[j], name); ok {
+					fn := filepath.Join(findPath, name)
+					elm.Import(fn, ".html")
+					hit = true
 					continue
 				}
 			}
 
-			for j := range htmls {
-				if ok, _ := filepath.Match(htmls[j], fi.Name()); ok {
-					fn := filepath.Join(findPath, fi.Name())
-					elm.Import(fn, ".html")
-					continue
+			if !hit {
+				for j := range xmls {
+					if ok, _ := filepath.Match(xmls[j], name); ok {
+						fn := filepath.Join(findPath, name)
+						elm.Import(fn, ".xml")
+						hit = true
+						continue
+					}
 				}
+			}
+
+			if !hit {
+				fn := filepath.Join(findPath, name)
+				elm.Import(fn, ".bin")
 			}
 		}
 	}
@@ -1647,6 +1678,7 @@ func (nd *Node) GetPath(basePath string) error {
 	if err != nil {
 		return err
 	}
+	name := fi.Name()
 
 	mt := AddLocal(fi.ModTime())
 	baseTime := FileMin()
@@ -1662,7 +1694,7 @@ func (nd *Node) GetPath(basePath string) error {
 		elm := doc.CreateElement("path")
 		elm.name = "$path"
 		elm.SetAttribute("pathType", "folder")
-		elm.SetAttribute("pathName", fi.Name())
+		elm.SetAttribute("pathName", name)
 		elm.SetAttribute("pathSize", fi.Size())
 		elm.SetAttribute("pathRels", rel)
 		if timeComp(baseTime, mt) != 0 {
@@ -1675,28 +1707,43 @@ func (nd *Node) GetPath(basePath string) error {
 		elm := doc.CreateElement("path")
 		elm.name = "$path"
 		elm.SetAttribute("pathType", "file")
-		elm.SetAttribute("pathName", fi.Name())
+		elm.SetAttribute("pathName", name)
 		elm.SetAttribute("pathSize", fi.Size())
+		elm.SetAttribute("pathExt", filepath.Ext(name))
 		elm.SetAttribute("pathRels", rel)
 		if timeComp(baseTime, mt) != 0 {
 			elm.SetAttribute("pathTime", mt)
 		}
 		nd.AppendChild(elm)
 
-		for j := range xmls {
-			if ok, _ := filepath.Match(xmls[j], fi.Name()); ok {
-				fn := filepath.Join(basePath, fi.Name())
-				elm.Import(fn, ".xml")
+		if filepath.Ext(name) == ".bin" {
+			fmt.Println(name)
+		}
+
+		hit := false
+		for j := range htmls {
+			if ok, _ := filepath.Match(htmls[j], name); ok {
+				fn := filepath.Join(basePath, name)
+				elm.Import(fn, ".html")
+				hit = true
 				return nil
 			}
 		}
 
-		for j := range htmls {
-			if ok, _ := filepath.Match(htmls[j], fi.Name()); ok {
-				fn := filepath.Join(basePath, fi.Name())
-				elm.Import(fn, ".html")
-				return nil
+		if !hit {
+			for j := range xmls {
+				if ok, _ := filepath.Match(xmls[j], name); ok {
+					fn := filepath.Join(basePath, name)
+					elm.Import(fn, ".xml")
+					hit = true
+					return nil
+				}
 			}
+		}
+
+		if !hit {
+			fn := filepath.Join(basePath, name)
+			elm.Import(fn, ".bin")
 		}
 	}
 
@@ -1748,6 +1795,19 @@ func (nd *Node) Import(fileName string, kind string) error {
 		}
 
 		nd.GetPath(fileName)
+	case ".bin":
+		if !FileExists(fullPath) {
+			return fmt.Errorf("(Error) not found file:'%v'", fullPath)
+		}
+
+		var binData []byte
+		binData, err = os.ReadFile(fullPath)
+		if err != nil {
+			return err
+		}
+		encoded := base64.StdEncoding.EncodeToString(binData)
+		enc := Split(encoded, 76)
+		nd.SetAttribute("Binary", enc)
 	}
 	return nil
 }
@@ -1771,7 +1831,31 @@ func (nd *Node) Export(fileName string, kind string) error {
 	case ".xml":
 		text = nd.GetXML()
 	case "path":
+		os.Mkdir(fullPath, 0755)
+		childs := nd.Children()
+		for i := range childs {
+			childs[i].exportPath(fullPath)
+		}
+	case ".bin":
+		var encoded string
+		v := nd.GetAttributeValue("Binary")
+		switch x := v.(type) {
+		case []string:
+			var enc []string
+			for k := range x {
+				enc = append(enc, x[k])
+			}
+			encoded = strings.Join(enc, "")
+		}
 
+		if len(encoded) > 0 {
+			binData, err := base64.StdEncoding.DecodeString(encoded)
+			if err != nil {
+				return err
+			}
+			err = os.WriteFile(fileName, binData, 0644)
+			return err
+		}
 	}
 
 	if len(text) == 0 {
@@ -1791,5 +1875,55 @@ func (nd *Node) Export(fileName string, kind string) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (nd *Node) exportPath(parentName string) error {
+	doc := nd.earth
+	xmls := doc.GetAlias(".xml", false)
+	xmls = append(xmls, "*.xml")
+	htmls := doc.GetAlias(".html", false)
+	htmls = append(htmls, "*.html")
+
+	childs := nd.Children()
+	for i := range childs {
+		child := childs[i]
+		if child.Name() == "$path" {
+			pathType := child.GetAttribute("pathType")
+			pathName := child.GetAttribute("pathName")
+			path := filepath.Join(parentName, pathName)
+
+			switch pathType {
+			case "folder":
+				fmt.Printf("d: %v\n", path)
+				os.Mkdir(path, 0755)
+				child.exportPath(path)
+			case "file":
+				hit := false
+				for j := range htmls {
+					if ok, _ := filepath.Match(htmls[j], pathName); ok {
+						child.Export(path, ".html")
+						hit = true
+						break
+					}
+				}
+
+				if !hit {
+					for j := range xmls {
+						if ok, _ := filepath.Match(xmls[j], pathName); ok {
+							child.Export(path, ".xml")
+							hit = true
+							break
+						}
+					}
+				}
+
+				if !hit {
+					child.Export(path, ".bin")
+				}
+			}
+		}
+	}
+
 	return nil
 }

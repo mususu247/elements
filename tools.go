@@ -343,7 +343,9 @@ func R1C1toA1(row int64, col int64) string {
 	s := string(char)
 	addr = s + addr
 
-	addr = addr + strconv.FormatInt(row, 10)
+	if row > 0 {
+		addr = addr + strconv.FormatInt(row, 10)
+	}
 	return addr
 }
 
@@ -376,5 +378,28 @@ func ToOADate(value time.Time) float64 {
 	//** Lotus 1-2-3 Bug (1900-02-29) **//
 	zero := time.Date(1899, 12, 30, 0, 0, 0, 0, time.Local)
 	result = value.Sub(zero).Hours() / 24
+	return result
+}
+
+func Split(value string, num int) []string {
+	var result []string
+
+	var posL int = 0
+	var posR int = num
+	var s string
+
+	count := len(value)
+	for posL < count {
+		if posR > count {
+			s = value[posL:count]
+		} else {
+			s = value[posL:posR]
+		}
+
+		fmt.Printf("[%v] %v\n", posL, s)
+		result = append(result, s)
+		posL = posL + num
+		posR = posL + num
+	}
 	return result
 }

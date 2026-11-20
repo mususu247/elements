@@ -156,6 +156,13 @@ func (doc *Dom) SaveAs(fileName string) error {
 	return nil
 }
 
+func (doc *Dom) Save() error {
+	if len(doc.fileName) > 0 {
+		return doc.SaveAs(doc.fileName)
+	}
+	return nil
+}
+
 func (doc *Dom) Close() {
 	// remove All
 	for i := range doc.flat {
