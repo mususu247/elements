@@ -116,6 +116,7 @@ func (doc *Dom) Open(fileName string) error {
 			links[i].attri["ref"] = ref
 		}
 	}
+	doc.fileName = fullPath
 	return nil
 }
 
