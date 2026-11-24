@@ -1000,6 +1000,7 @@ func (nd *Node) Deep() int {
 
 	node := nd.Parent()
 	if node != nil {
+		count++
 		for {
 			node = node.Parent()
 			if node != nil {
