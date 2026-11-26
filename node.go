@@ -1287,7 +1287,7 @@ func (nd *Node) getXML(ns map[string]string) string {
 			case "!":
 				text = text + comment
 			case "?":
-				text = text + "<?xml " + comment + "?>"
+				text = text + "<?xml " + comment + "?>\r\n"
 			}
 		case "$space":
 		case "$alias":
@@ -1586,7 +1586,16 @@ func (nd *Node) xml2node(htmlData string) error {
 }
 
 // Path to Node
-func (nd *Node) getPath(basePath string, findPath string) error {
+func Match(value string, list []string) bool {
+	for i := range list {
+		if ok, _ := filepath.Match(list[i], value); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (nd *Node) getPath(basePath string, findPath string, htmls []string, xmls []string) error {
 	list, err := os.ReadDir(findPath)
 	if err != nil {
 		return err
@@ -1594,12 +1603,7 @@ func (nd *Node) getPath(basePath string, findPath string) error {
 
 	base := basePath + string(filepath.Separator)
 	baseTime := FileMin()
-
 	doc := nd.earth
-	xmls := doc.GetAlias(".xml", false)
-	xmls = append(xmls, "*.xml")
-	htmls := doc.GetAlias(".html", false)
-	htmls = append(htmls, "*.html")
 
 	for i := range list {
 		fi, err := list[i].Info()
@@ -1626,7 +1630,7 @@ func (nd *Node) getPath(basePath string, findPath string) error {
 			}
 			nd.AppendChild(elm)
 
-			elm.getPath(basePath, find)
+			elm.getPath(basePath, find, htmls, xmls)
 		} else {
 			elm := doc.CreateElement("path")
 			elm.name = "$path"
@@ -1639,28 +1643,14 @@ func (nd *Node) getPath(basePath string, findPath string) error {
 			}
 			nd.AppendChild(elm)
 
-			hit := false
-			for j := range htmls {
-				if ok, _ := filepath.Match(htmls[j], name); ok {
-					fn := filepath.Join(findPath, name)
-					elm.Import(fn, ".html")
-					hit = true
-					continue
-				}
-			}
-
-			if !hit {
-				for j := range xmls {
-					if ok, _ := filepath.Match(xmls[j], name); ok {
-						fn := filepath.Join(findPath, name)
-						elm.Import(fn, ".xml")
-						hit = true
-						continue
-					}
-				}
-			}
-
-			if !hit {
+			switch {
+			case Match(name, htmls):
+				fn := filepath.Join(findPath, name)
+				elm.Import(fn, ".html")
+			case Match(name, xmls):
+				fn := filepath.Join(findPath, name)
+				elm.Import(fn, ".xml")
+			default:
 				fn := filepath.Join(findPath, name)
 				elm.Import(fn, ".bin")
 			}
@@ -1686,10 +1676,8 @@ func (nd *Node) GetPath(basePath string) error {
 	doc := nd.earth
 	rel := "/"
 
-	xmls := doc.GetAlias(".xml", false)
-	xmls = append(xmls, "*.xml")
-	htmls := doc.GetAlias(".html", false)
-	htmls = append(htmls, "*.html")
+	xmls := doc.GetAliasPlus(".xml", "*", "")
+	htmls := doc.GetAliasPlus(".html", "*", "")
 
 	if fi.IsDir() {
 		elm := doc.CreateElement("path")
@@ -1703,7 +1691,7 @@ func (nd *Node) GetPath(basePath string) error {
 		}
 		nd.AppendChild(elm)
 
-		elm.getPath(basePath, basePath)
+		elm.getPath(basePath, basePath, htmls, xmls)
 	} else {
 		elm := doc.CreateElement("path")
 		elm.name = "$path"
@@ -1717,32 +1705,14 @@ func (nd *Node) GetPath(basePath string) error {
 		}
 		nd.AppendChild(elm)
 
-		if filepath.Ext(name) == ".bin" {
-			fmt.Println(name)
-		}
-
-		hit := false
-		for j := range htmls {
-			if ok, _ := filepath.Match(htmls[j], name); ok {
-				fn := filepath.Join(basePath, name)
-				elm.Import(fn, ".html")
-				hit = true
-				return nil
-			}
-		}
-
-		if !hit {
-			for j := range xmls {
-				if ok, _ := filepath.Match(xmls[j], name); ok {
-					fn := filepath.Join(basePath, name)
-					elm.Import(fn, ".xml")
-					hit = true
-					return nil
-				}
-			}
-		}
-
-		if !hit {
+		switch {
+		case Match(name, htmls):
+			fn := filepath.Join(basePath, name)
+			elm.Import(fn, ".html")
+		case Match(name, xmls):
+			fn := filepath.Join(basePath, name)
+			elm.Import(fn, ".xml")
+		default:
 			fn := filepath.Join(basePath, name)
 			elm.Import(fn, ".bin")
 		}

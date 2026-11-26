@@ -351,6 +351,14 @@ func (doc *Dom) GetAlias(name string, inc bool) []string {
 	return list
 }
 
+func (doc *Dom) GetAliasPlus(name string, head string, foot string) []string {
+	list := doc.GetAlias(name, true)
+	for i := range list {
+		list[i] = head + list[i] + foot
+	}
+	return list
+}
+
 // ReIndex
 func (doc *Dom) ReIndex() error {
 	err := doc.check()
