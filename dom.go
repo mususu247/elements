@@ -298,22 +298,49 @@ func (doc *Dom) SetAlias(name string, alias ...string) error {
 		node = doc.CreateElement("alias")
 		node.name = "$alias"
 		root.AppendChild(node)
+		slices.Sort(alias)
+		node.attri[name] = alias
+	} else {
+		v := node.GetAttributeValue(name)
+		switch x := v.(type) {
+		case []any:
+			for i := range alias {
+				hit := false
+
+				for k := range x {
+					switch xx := x[k].(type) {
+					case string:
+						if xx == alias[i] {
+							hit = true
+							break
+						}
+					}
+				}
+
+				if !hit {
+					x = append(x, alias[i])
+				}
+			}
+			node.SetAttribute(name, x)
+		case []string:
+			for i := range alias {
+				hit := false
+
+				for k := range x {
+					if x[k] == alias[i] {
+						hit = true
+						break
+					}
+				}
+
+				if !hit {
+					x = append(x, alias[i])
+				}
+			}
+			node.SetAttribute(name, x)
+		}
 	}
 
-	if attr, ok := node.attri[name]; ok {
-		switch x := attr.(type) {
-		case string:
-			list := strings.Split(x, " ")
-			list = append(list, alias...)
-			list = removeDupStr(list)
-			line := strings.Join(list, " ")
-			node.attri[name] = line
-		}
-	} else {
-		slices.Sort(alias)
-		line := strings.Join(alias, " ")
-		node.attri[name] = line
-	}
 	return nil
 }
 
@@ -326,28 +353,25 @@ func (doc *Dom) GetAlias(name string, inc bool) []string {
 
 	root := doc.Root()
 	node := root.firstByTagName("$alias")
-	if node == nil {
-		if inc {
-			list = append(list, name)
-		}
-		return list
-	}
-
-	if attr, ok := node.attri[name]; ok {
-		switch x := attr.(type) {
-		case string:
-			list := strings.Split(x, " ")
-			if inc {
-				list = append(list, name)
-				slices.Sort(list)
+	if node != nil {
+		v := node.GetAttributeValue(name)
+		switch x := v.(type) {
+		case []any:
+			for k := range x {
+				switch xx := x[k].(type) {
+				case string:
+					list = append(list, xx)
+				}
 			}
-			return list
+		case []string:
+			list = append(list, x...)
 		}
 	}
 
 	if inc {
 		list = append(list, name)
 	}
+	slices.Sort(list)
 	return list
 }
 

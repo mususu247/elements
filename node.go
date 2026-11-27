@@ -409,13 +409,13 @@ func (nd *Node) SetAttribute(key string, value any) error {
 func (nd *Node) GetAttributeValue(key string) any {
 	err := nd.check()
 	if err != nil {
-		return ""
+		return nil
 	}
 
 	if v, ok := nd.attri[key]; ok {
 		return v
 	}
-	return ""
+	return nil
 }
 
 func (nd *Node) GetAttribute(key string) string {
@@ -1851,10 +1851,8 @@ func (nd *Node) Export(fileName string, kind string) error {
 
 func (nd *Node) exportPath(parentName string) error {
 	doc := nd.earth
-	xmls := doc.GetAlias(".xml", false)
-	xmls = append(xmls, "*.xml")
-	htmls := doc.GetAlias(".html", false)
-	htmls = append(htmls, "*.html")
+	xmls := doc.GetAliasPlus(".xml", "*", "")
+	htmls := doc.GetAliasPlus(".html", "*", "")
 
 	childs := nd.Children()
 	for i := range childs {
@@ -1866,7 +1864,6 @@ func (nd *Node) exportPath(parentName string) error {
 
 			switch pathType {
 			case "folder":
-				fmt.Printf("d: %v\n", path)
 				os.Mkdir(path, 0755)
 				child.exportPath(path)
 			case "file":

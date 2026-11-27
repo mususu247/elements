@@ -396,7 +396,6 @@ func Split(value string, num int) []string {
 			s = value[posL:posR]
 		}
 
-		fmt.Printf("[%v] %v\n", posL, s)
 		result = append(result, s)
 		posL = posL + num
 		posR = posL + num
